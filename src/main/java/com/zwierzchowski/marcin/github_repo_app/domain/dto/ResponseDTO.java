@@ -1,4 +1,6 @@
 package com.zwierzchowski.marcin.github_repo_app.domain.dto;
 
-public record ResponseDTO(String repositoryName) {
+import java.util.Set;
+
+public record ResponseDTO(String repositoryName, String ownerLogin, Set<BranchDTO> branches) {
 }
