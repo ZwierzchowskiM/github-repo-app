@@ -7,14 +7,17 @@ import com.zwierzchowski.marcin.github_repo_app.domain.dto.ResponseDTO;
 import com.zwierzchowski.marcin.github_repo_app.exception.UserNotFoundException;
 import java.net.URI;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.log4j.Log4j2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
@@ -41,8 +44,8 @@ public class GitHubServiceImpl implements GitHubService {
     this.webClient = webClient;
   }
 
-  public Set<ResponseDTO> getRepositoriesDetails(String username) {
-    return getRepositories(username)
+  public Optional<Set<ResponseDTO>> getRepositoriesDetails(String username) {
+    return Optional.ofNullable(getRepositories(username)
         .filter(repository -> !repository.fork())
         .flatMap(
             repository ->
@@ -57,13 +60,15 @@ public class GitHubServiceImpl implements GitHubService {
                                 repository.owner().login(),
                                 new HashSet<>(branches))))
         .collect(Collectors.toSet())
-        .block();
+        .block());
+
   }
 
   public Flux<Repository> getRepositories(String username) {
 
     logger.info("Fetching repositories details for user: {}", username);
-    Flux<Repository> repositories = getResponse(username, Repository.class, gitHubReposApiUrl);
+    Flux<Repository> repositories =
+        getRepositoryResponse(username, Repository.class, gitHubReposApiUrl);
 
     logger.info("Successfully fetched repositories details for user: {}", username);
     return repositories;
@@ -73,20 +78,21 @@ public class GitHubServiceImpl implements GitHubService {
 
     logger.info("Fetching branches for repository: {}/{}", username, repositoryName);
     Flux<Branch> branches =
-        getResponse(username, repositoryName, Branch.class, gitHubBranchesApiUrl);
+        getBranchResponse(username, repositoryName, Branch.class, gitHubBranchesApiUrl);
 
     return branches;
   }
 
-  public <T> Flux<T> getResponse(String username, Class<T> responseType, String url) {
+  public <T> Flux<T> getRepositoryResponse(String username, Class<T> responseType, String url) {
 
-    logger.info("Building URI for username: {} ", username);
-    URI uri = UriComponentsBuilder.fromUriString(url).buildAndExpand(username).toUri();
 
-    return fetchResponse(uri, responseType);
+      logger.info("Building URI for username: {} ", username);
+      URI uri = UriComponentsBuilder.fromUriString(url).buildAndExpand(username).toUri();
+      return fetchResponse(uri, responseType);
+
   }
 
-  public <T> Flux<T> getResponse(
+  public <T> Flux<T> getBranchResponse(
       String username, String repositoryName, Class<T> responseType, String url) {
 
     logger.info("Building URI for username: {} and repository: {}", username, repositoryName);
@@ -97,42 +103,33 @@ public class GitHubServiceImpl implements GitHubService {
   }
 
   public <T> Flux<T> fetchResponse(URI uri, Class<T> responseType) {
-
     logger.info("Executing GET request to URI: {}", uri);
-    Flux<T> response =
-        webClient
-            .get()
-            .uri(uri)
-            .retrieve()
-            .onStatus(
-                httpStatus -> !httpStatus.is2xxSuccessful(),
-                clientResponse -> handleResponse(clientResponse.statusCode()))
-            .bodyToFlux(responseType)
-            .log()
-            .onErrorResume(
-                Exception.class,
-                ex -> {
-                  logger.error(ex.getMessage());
-                  return Mono.empty();
-                });
-
-    return response;
+    return webClient
+        .get()
+        .uri(uri)
+        .retrieve()
+        .onStatus(
+            httpStatus -> !httpStatus.is2xxSuccessful(),
+            clientResponse -> handleResponse(clientResponse.statusCode()))
+        .bodyToFlux(responseType)
+            .onErrorMap(
+                    Exception.class,
+                    ex -> {
+                      logger.error(ex.getMessage());
+                      return new RuntimeException("Error fetching response", ex);
+                    });
   }
 
   private Mono<? extends Throwable> handleResponse(HttpStatusCode statusCode) {
-
-    if (statusCode.is2xxSuccessful()) {
-      logger.info("Request successful ");
-      return null;
-    } else if (statusCode.is4xxClientError()) {
-      logger.error("Request failed. Received status code: {}", statusCode);
+    if (statusCode.is4xxClientError()) {
+      logger.error("Client error occurred. Status code: {}", statusCode);
       return Mono.error(new UserNotFoundException("User not found on GitHub"));
     } else if (statusCode.is5xxServerError()) {
-      logger.error("Request failed. Received status code: {}", statusCode);
-      return Mono.error(new RuntimeException("Server error"));
+      logger.error("Server error occurred. Status code: {}", statusCode);
+      return Mono.error(new RuntimeException("Server error occurred"));
     } else {
-      logger.error("Unexpected status code. Received status code: {}", statusCode);
-      return Mono.error(new RuntimeException("Unexpected error"));
+      logger.error("Unexpected error occurred. Status code: {}", statusCode);
+      return Mono.error(new RuntimeException("Unexpected error occurred"));
     }
   }
 }
