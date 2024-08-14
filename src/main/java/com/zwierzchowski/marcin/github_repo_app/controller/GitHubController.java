@@ -19,7 +19,7 @@ import java.util.Set;
 public class GitHubController {
 
 
-    private GitHubService gitHubService;
+    private final GitHubService gitHubService;
 
     public GitHubController(GitHubService gitHubService) {
         this.gitHubService = gitHubService;

@@ -14,10 +14,8 @@ import lombok.extern.log4j.Log4j2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
@@ -29,16 +27,16 @@ public class GitHubServiceImpl implements GitHubService {
 
   private static final Logger logger = LoggerFactory.getLogger(GitHubServiceImpl.class);
 
-  @Value("${github.repos.api.url:https://api.github.com/users/{username}/repos}")
+  @Value("${github.repos.api.url}")
   private String gitHubReposApiUrl;
 
-  @Value("${github.branches.api.url:https://api.github.com/repos/{username}/{reponame}/branches}")
+  @Value("${github.branches.api.url}")
   private String gitHubBranchesApiUrl;
 
-  @Value("${github.commits.api.url:https://api.github.com/repos/{username}/{reponame}/commits}")
+  @Value("${github.commits.api.url}")
   private String gitHubCommitsApiUrl;
 
-  WebClient webClient;
+  private WebClient webClient;
 
   public GitHubServiceImpl(WebClient webClient) {
     this.webClient = webClient;

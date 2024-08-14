@@ -2,13 +2,11 @@ package com.zwierzchowski.marcin.github_repo_app.service;
 
 import com.zwierzchowski.marcin.github_repo_app.domain.Branch;
 import com.zwierzchowski.marcin.github_repo_app.domain.Repository;
-import com.zwierzchowski.marcin.github_repo_app.domain.dto.BranchDTO;
 import com.zwierzchowski.marcin.github_repo_app.domain.dto.ResponseDTO;
-import reactor.core.publisher.Flux;
-
 import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
+import reactor.core.publisher.Flux;
 
 public interface GitHubService {
 
