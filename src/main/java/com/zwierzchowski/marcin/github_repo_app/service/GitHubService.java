@@ -7,17 +7,22 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface GitHubService {
 
-    Optional<Set<ResponseDTO>> getRepositoriesDetails(String username);
+  Optional<Set<ResponseDTO>> getRepositoriesDetails(String username);
 
-    Flux<Repository> getRepositories(String username);
+  Mono<ResponseDTO> buildRepositoryResponseDTO(String username, Repository repository);
 
-    Flux<Branch> getBranches(String username, String repoName);
+  Flux<Repository> getRepositories(String username);
 
-    <T> Flux<T> getRepositoryResponse(String username, Class<T> responseType, String url);
+  Flux<Branch> getBranches(String username, String repoName);
 
-    <T> Flux<T> fetchResponse(URI uri, Class<T> responseType);
+  <T> Flux<T> fetchRepositoriesFromGitHub(String username, Class<T> responseType, String url);
 
+  <T> Flux<T> fetchBranchesFromGitHub(
+      String username, String repositoryName, Class<T> responseType, String url);
+
+  <T> Flux<T> fetchResponse(URI uri, Class<T> responseType);
 }

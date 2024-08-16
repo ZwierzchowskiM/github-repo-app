@@ -28,13 +28,10 @@ public class GitHubServiceImpl implements GitHubService {
   private static final Logger logger = LoggerFactory.getLogger(GitHubServiceImpl.class);
 
   @Value("${github.repos.api.url}")
-  private String gitHubReposApiUrl;
+  String gitHubReposApiUrl;
 
   @Value("${github.branches.api.url}")
-  private String gitHubBranchesApiUrl;
-
-  @Value("${github.commits.api.url}")
-  private String gitHubCommitsApiUrl;
+  String gitHubBranchesApiUrl;
 
   private WebClient webClient;
 
@@ -43,30 +40,31 @@ public class GitHubServiceImpl implements GitHubService {
   }
 
   public Optional<Set<ResponseDTO>> getRepositoriesDetails(String username) {
-    return Optional.ofNullable(getRepositories(username)
-        .filter(repository -> !repository.fork())
-        .flatMap(
-            repository ->
-                getBranches(username, repository.name())
-                    .flatMap(
-                        branch -> Mono.just(new BranchDTO(branch.name(), branch.commit().sha())))
-                    .collectList()
-                    .map(
-                        branches ->
-                            new ResponseDTO(
-                                repository.name(),
-                                repository.owner().login(),
-                                new HashSet<>(branches))))
-        .collect(Collectors.toSet())
-        .block());
+    Flux<Repository> repositories =
+        getRepositories(username).filter(repository -> !repository.fork());
+    Set<ResponseDTO> responseDTOs =
+        repositories
+            .flatMap(repository -> buildRepositoryResponseDTO(username, repository))
+            .collect(Collectors.toSet())
+            .block();
+    return Optional.ofNullable(responseDTOs);
+  }
 
+  public Mono<ResponseDTO> buildRepositoryResponseDTO(String username, Repository repository) {
+    return getBranches(username, repository.name())
+        .flatMap(branch -> Mono.just(new BranchDTO(branch.name(), branch.commit().sha())))
+        .collectList()
+        .map(
+            branches ->
+                new ResponseDTO(
+                    repository.name(), repository.owner().login(), new HashSet<>(branches)));
   }
 
   public Flux<Repository> getRepositories(String username) {
 
     logger.info("Fetching repositories details for user: {}", username);
     Flux<Repository> repositories =
-        getRepositoryResponse(username, Repository.class, gitHubReposApiUrl);
+        fetchRepositoriesFromGitHub(username, Repository.class, gitHubReposApiUrl);
 
     logger.info("Successfully fetched repositories details for user: {}", username);
     return repositories;
@@ -76,21 +74,20 @@ public class GitHubServiceImpl implements GitHubService {
 
     logger.info("Fetching branches for repository: {}/{}", username, repositoryName);
     Flux<Branch> branches =
-        getBranchResponse(username, repositoryName, Branch.class, gitHubBranchesApiUrl);
+        fetchBranchesFromGitHub(username, repositoryName, Branch.class, gitHubBranchesApiUrl);
 
     return branches;
   }
 
-  public <T> Flux<T> getRepositoryResponse(String username, Class<T> responseType, String url) {
+  public <T> Flux<T> fetchRepositoriesFromGitHub(
+      String username, Class<T> responseType, String url) {
 
-
-      logger.info("Building URI for username: {} ", username);
-      URI uri = UriComponentsBuilder.fromUriString(url).buildAndExpand(username).toUri();
-      return fetchResponse(uri, responseType);
-
+    logger.info("Building URI for username: {} ", username);
+    URI uri = UriComponentsBuilder.fromUriString(url).buildAndExpand(username).toUri();
+    return fetchResponse(uri, responseType);
   }
 
-  public <T> Flux<T> getBranchResponse(
+  public <T> Flux<T> fetchBranchesFromGitHub(
       String username, String repositoryName, Class<T> responseType, String url) {
 
     logger.info("Building URI for username: {} and repository: {}", username, repositoryName);
@@ -110,12 +107,12 @@ public class GitHubServiceImpl implements GitHubService {
             httpStatus -> !httpStatus.is2xxSuccessful(),
             clientResponse -> handleResponse(clientResponse.statusCode()))
         .bodyToFlux(responseType)
-            .onErrorMap(
-                    Exception.class,
-                    ex -> {
-                      logger.error(ex.getMessage());
-                      return new RuntimeException("Error fetching response", ex);
-                    });
+        .onErrorMap(
+            Exception.class,
+            ex -> {
+              logger.error(ex.getMessage());
+              return new RuntimeException("Error fetching response", ex);
+            });
   }
 
   private Mono<? extends Throwable> handleResponse(HttpStatusCode statusCode) {
