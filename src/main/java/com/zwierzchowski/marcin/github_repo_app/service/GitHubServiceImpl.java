@@ -28,10 +28,10 @@ public class GitHubServiceImpl implements GitHubService {
   private static final Logger logger = LoggerFactory.getLogger(GitHubServiceImpl.class);
 
   @Value("${github.repos.api.url}")
-  String gitHubReposApiUrl;
+  protected String gitHubReposApiUrl;
 
   @Value("${github.branches.api.url}")
-  String gitHubBranchesApiUrl;
+  protected String gitHubBranchesApiUrl;
 
   private WebClient webClient;
 

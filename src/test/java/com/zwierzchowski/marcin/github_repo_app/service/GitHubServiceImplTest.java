@@ -30,17 +30,15 @@ class GitHubServiceImplTest {
 
   @InjectMocks private GitHubServiceImpl gitHubService;
 
-  String username;
-  Repository repository;
-  Branch branch;
-  String repoName;
-  GitHubServiceImpl spyGitHubService;
+  private String username;
+  private Repository repository;
+  private Branch branch;
+  private String repoName;
 
   @BeforeEach
   public void setUp() {
     MockitoAnnotations.openMocks(this);
     gitHubService = new GitHubServiceImpl(webClient);
-    spyGitHubService = spy(gitHubService);
 
     gitHubService.gitHubReposApiUrl = "https://api.github.com/users/{username}/repos";
     gitHubService.gitHubBranchesApiUrl = "https://api.github.com/repos/{username}/{repo}/branches";
@@ -53,6 +51,7 @@ class GitHubServiceImplTest {
 
   @Test
   void testGetRepositories() {
+    GitHubServiceImpl spyGitHubService = spy(gitHubService);
 
     doReturn(Flux.just(repository))
         .when(spyGitHubService)
@@ -65,6 +64,7 @@ class GitHubServiceImplTest {
 
   @Test
   void testGetBranches() {
+    GitHubServiceImpl spyGitHubService = spy(gitHubService);
 
     doReturn(Flux.just(branch))
         .when(spyGitHubService)
@@ -78,6 +78,7 @@ class GitHubServiceImplTest {
 
   @Test
   void getRepositoriesDetails() {
+    GitHubServiceImpl spyGitHubService = spy(gitHubService);
 
     ResponseDTO expectedResponseDTO =
         new ResponseDTO("repo1", "owner", new HashSet<>(Set.of(new BranchDTO("main", "sha123"))));
@@ -96,6 +97,7 @@ class GitHubServiceImplTest {
 
   @Test
   void buildRepositoryResponseDTO() {
+    GitHubServiceImpl spyGitHubService = spy(gitHubService);
 
     BranchDTO expectedBranchDTO = new BranchDTO("main", "sha123");
     ResponseDTO expectedResponseDTO =
